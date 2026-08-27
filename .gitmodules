@@ -1,0 +1,15 @@
+[submodule "eureka-server"]
+	path = eureka-server
+	url = https://github.com/yamamotolucas/eureka-server.git
+[submodule "api-gateway"]
+	path = api-gateway
+	url = https://github.com/yamamotolucas/api-gateway.git
+[submodule "identity-ms"]
+	path = identity-ms
+	url = https://github.com/yamamotolucas/identity-ms.git
+[submodule "booking-ms"]
+	path = booking-ms
+	url = https://github.com/yamamotolucas/booking-ms.git
+[submodule "notification-ms"]
+	path = notification-ms
+	url = https://github.com/yamamotolucas/notification-ms.git
