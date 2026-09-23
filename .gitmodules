@@ -13,3 +13,6 @@
 [submodule "notification-ms"]
 	path = notification-ms
 	url = https://github.com/yamamotolucas/notification-ms.git
+[submodule "front-end"]
+	path = front-end
+	url = https://github.com/yamamotolucas/front-ms
