@@ -47,6 +47,7 @@ services:
       - "8080:8080"
     environment:
       - TZ=America/Sao_Paulo
+      - JWT_SECRET=${JWT_SECRET}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8081/eureka/
     depends_on:
       eureka-server:
@@ -88,6 +89,7 @@ services:
       - SPRING_RABBITMQ_PORT=5672
       - SPRING_RABBITMQ_USERNAME=${RABBIT_USER}
       - SPRING_RABBITMQ_PASSWORD=${RABBIT_PASS}
+      - JWT_SECRET=${JWT_SECRET}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8081/eureka/
     depends_on:
       mysql:
