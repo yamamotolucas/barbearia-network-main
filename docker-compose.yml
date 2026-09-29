@@ -1,0 +1,147 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-barber_db}
+    volumes:
+      - dados-mysql:/var/lib/mysql
+    networks:
+      - barbearia-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASS}
+    ports:
+      - "127.0.0.1:15672:15672"
+    networks:
+      - barbearia-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  eureka-server:
+    build: ./eureka-server
+    container_name: eureka-server
+    ports:
+      - "127.0.0.1:8081:8081"
+    networks:
+      - barbearia-network
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - TZ=America/Sao_Paulo
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8081/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_started
+    networks:
+      - barbearia-network
+
+  identity-ms:
+    build: ./identity-ms
+    container_name: identity-ms
+    environment:
+      - TZ=America/Sao_Paulo
+      - SERVER_PORT=8082
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/identity_ms?createDatabaseIfNotExist=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8081/eureka/
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      api-gateway:
+        condition: service_started
+    networks:
+      - barbearia-network
+
+  booking-ms:
+    build: ./booking-ms
+    container_name: booking-ms
+    environment:
+      - TZ=America/Sao_Paulo
+      - SERVER_PORT=8083
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/booking_ms?createDatabaseIfNotExist=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=${RABBIT_USER}
+      - SPRING_RABBITMQ_PASSWORD=${RABBIT_PASS}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8081/eureka/
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      identity-ms:
+        condition: service_started
+      api-gateway:
+        condition: service_started
+    networks:
+      - barbearia-network
+
+  notification-ms:
+    build: ./notification-ms
+    container_name: notification-ms
+    environment:
+      - TZ=America/Sao_Paulo
+      - SERVER_PORT=8084
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=${RABBIT_USER}
+      - SPRING_RABBITMQ_PASSWORD=${RABBIT_PASS}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8081/eureka/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      booking-ms:
+        condition: service_started
+    networks:
+      - barbearia-network
+
+  frontend:
+    build: ./front-end
+    container_name: front-end
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - INTERNAL_API_URL=http://api-gateway:8080
+    depends_on:
+      api-gateway:
+        condition: service_started
+    networks:
+      - barbearia-network
+
+networks:
+  barbearia-network:
+    driver: bridge
+
+volumes:
+  dados-mysql:
