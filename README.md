@@ -28,6 +28,7 @@ O **Barbearia Network** é um ecossistema backend construído com arquitetura or
 * **Sobrecarga Síncrona em Disparos Externos:** O fluxo de confirmação de reservas não trava esperando a resposta de provedores lentos de e-mail; o agendamento é persistido imediatamente e delegado via mensageria assíncrona.
 * **Segurança e Isolamento Perimetral:** Microsserviços internos de negócio não ficam expostos à internet pública. Toda autenticação, validação de token JWT e enriquecimento de headers ocorrem na borda (*API Gateway*).
 * **Escalabilidade e Desacoplamento:** Cada domínio (identidade, reservas, notificações) possui suas próprias tabelas e seus próprios schemas de banco de dados versionados via Flyway.
+* **Testes de notificações:** Mailpit para capturar e visualizar e-mails gerados durante o desenvolvimento, sem depender de credenciais pessoais ou enviar mensagens reais.
 
 ---
 
@@ -87,6 +88,95 @@ O ecossistema é composto por 5 microsserviços principais integrados sob uma ma
 * **Orquestração de Contêineres:** Docker & Docker Compose
 * **Qualidade & Testes:** JUnit 5 e Mockito (cobertura unitária nas regras de negócio e validações)
 * **CI/CD:** GitHub Actions (pipeline automatizado executando build e suíte de testes a cada push na branch `main`)
+* **Testes de e-mail:** Mailpit
+
+---
+
+## 📧 Mailpit — Testes de E-mail
+
+### Por que o projeto utiliza Mailpit?
+
+Em um ambiente real, o serviço de notificações precisa enviar mensagens por meio de um servidor SMTP capaz de entregá-las aos destinatários.
+
+Durante o desenvolvimento e a avaliação do projeto, porém, exigir uma conta Gmail, senhas de aplicativo ou credenciais de um provedor externo tornaria a execução mais complexa e exporia informações desnecessárias.
+
+Por isso, o projeto utiliza o **Mailpit**, uma ferramenta de desenvolvimento que funciona como servidor SMTP de testes.
+
+O Mailpit recebe as mensagens enviadas pela aplicação e disponibiliza uma caixa de entrada web para visualização e inspeção.
+
+> ⚠️ **Atenção:** o Mailpit não entrega as mensagens aos endereços de e-mail reais. Mesmo que o código defina `cliente@gmail.com` como destinatário, a mensagem será capturada pelo Mailpit e ficará disponível na inbox local. Isso permite testar o conteúdo e o fluxo de envio sem enviar mensagens reais.
+
+O nome `mailpit` é resolvido pelo DNS interno da rede Docker. A porta `1025` é utilizada pelo Notification MS para enviar mensagens ao Mailpit.
+
+A porta `8025` disponibiliza a interface web na máquina local.
+
+### Como visualizar as mensagens
+
+Depois de iniciar os containers:
+
+1. Abra `http://localhost:8025` no navegador.
+2. Realize um agendamento válido pela API.
+3. Aguarde o processamento do evento pelo `notification-ms`.
+4. Atualize a inbox do Mailpit.
+5. Abra a mensagem para verificar destinatário, assunto, conteúdo e cabeçalhos.
+
+---
+
+## 🔐 Observação: Autenticação OAuth2 (GitHub e Google)
+
+O projeto possui suporte à autenticação OAuth2 com **GitHub e Google**, permitindo que os usuários autentiquem-se utilizando suas contas dessas plataformas.
+
+Por motivos de segurança, as credenciais OAuth2 (`Client ID` e `Client Secret`) não são disponibilizadas no repositório. Portanto, **a autenticação via GitHub e Google não funcionará imediatamente após clonar o projeto**. Entretanto, é possível habilitar os dois provedores utilizando suas próprias aplicações OAuth.
+
+### 🔗 URLs utilizadas
+
+A configuração utiliza os seguintes endereços locais:
+
+| Configuração | URL |
+|---|---|
+| Homepage / origem do frontend | `http://localhost:3000` |
+| Callback OAuth2 — GitHub | `http://localhost:8080/identity-ms/v1/auth/oauth2/callback/github` |
+| Callback OAuth2 — Google | `http://localhost:8080/identity-ms/v1/auth/oauth2/callback/google` |
+
+### 1. Configurando o GitHub OAuth
+
+1. Acesse [GitHub Developer Settings](https://github.com/settings/developers).
+2. Entre em **OAuth Apps** e clique em **New OAuth App**.
+3. Preencha os campos:
+
+   - **Application name:** Barbearia Network
+   - **Homepage URL:** `http://localhost:3000`
+   - **Authorization callback URL:** `http://localhost:8080/identity-ms/v1/auth/oauth2/callback/github`
+
+4. Registre a aplicação e gere um `Client Secret`.
+5. Configure as credenciais no ambiente local.
+
+### 2. Configurando o Google OAuth2
+
+1. Acesse o [Google Cloud Console](https://console.cloud.google.com/).
+2. Crie ou selecione um projeto no Google Cloud.
+3. Configure a tela de consentimento OAuth e os usuários de teste, se necessário.
+4. Acesse **APIs e serviços → Credenciais** e crie um **ID do cliente OAuth** do tipo *Aplicativo da Web*.
+5. Configure os endereços autorizados:
+
+   - **Origens JavaScript autorizadas:** `http://localhost:3000`
+   - **URIs de redirecionamento autorizados:** `http://localhost:8080/identity-ms/v1/auth/oauth2/callback/google`
+
+6. Copie o `Client ID` e o `Client Secret` gerados e configure-os no ambiente local.
+
+### 3. Configurando as variáveis de ambiente
+
+Adicione as credenciais ao arquivo `.env` local, utilizando os nomes esperados pela configuração do `identity-ms`.
+
+Exemplo ilustrativo:
+
+```dotenv
+GITHUB_CLIENT_ID=seu_client_id_github
+GITHUB_CLIENT_SECRET=seu_client_secret_github
+
+GOOGLE_CLIENT_ID=seu_client_id_google
+GOOGLE_CLIENT_SECRET=seu_client_secret_google
+```
 
 ---
 
