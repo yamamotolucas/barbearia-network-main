@@ -65,6 +65,10 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8081/eureka/
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     depends_on:
       mysql:
         condition: service_healthy
@@ -113,13 +117,27 @@ services:
       - SPRING_RABBITMQ_USERNAME=${RABBIT_USER}
       - SPRING_RABBITMQ_PASSWORD=${RABBIT_PASS}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8081/eureka/
+      - SPRING_MAIL_HOST=mailpit
+      - SPRING_MAIL_PORT=1025
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=false
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=false
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED=false
     depends_on:
+      mailpit:
+        condition: service_started
       rabbitmq:
         condition: service_healthy
       eureka-server:
         condition: service_started
       booking-ms:
         condition: service_started
+    networks:
+      - barbearia-network
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "127.0.0.1:8025:8025"
     networks:
       - barbearia-network
 
